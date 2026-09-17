@@ -154,6 +154,21 @@ internal sealed class PlatformSet
         return true;
     }
 
+    /// <summary>Same rule as the runtime assembler, for the first-run base-folder setup.</summary>
+    public static bool IsGameFilePublic(string name) => IsGameFile(name);
+
+    /// <summary>Hard-links src to dst (no extra disk), falling back to a copy. Returns success.</summary>
+    public static bool HardLinkOrCopy(string src, string dst)
+    {
+        try
+        {
+            if (CreateHardLinkW(dst, src, IntPtr.Zero)) return true;
+            File.Copy(src, dst, true);
+            return true;
+        }
+        catch { return false; }
+    }
+
     // Point dst at src by a hard link, keeping it current: a link whose target is a different size (the
     // platform was updated) is remade, one that already matches is left alone. Falls back to a copy.
     static void Link(string src, string dst, Action<string>? log)

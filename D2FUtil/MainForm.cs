@@ -125,19 +125,12 @@ internal sealed class MainForm : Form
         Controls.Add(outer);
 
         // ---- Game: the patch checklist, driven by the Platforms folder next to the exe
-        var gameStack = NewPage("Game", 2);
+        var gameStack = NewPage("Game", 3);
         int gameRow = 0;
         if (_platforms is not null)
             gameStack.Controls.Add(BuildPatchesCard(), 0, gameRow++);
         else
-        {
-            var miss = new Card("Diablo II");
-            miss.Controls.Add(Theme.Note(
-                "No Platforms folder was found next to this program.\n\n" +
-                "Put a 'Platforms' folder (one subfolder of DLLs per patch) and a 'Diablo II' folder\n" +
-                "with the game's archives beside D2FUtil.exe, then reopen."));
-            gameStack.Controls.Add(miss, 0, gameRow++);
-        }
+            gameStack.Controls.Add(BuildSetupCard(), 0, gameRow++);
 
         var optCard = new Card("Launch options");
         var ol = NewGrid(2);
@@ -418,6 +411,74 @@ internal sealed class MainForm : Form
         if (_noSound.Checked) a.Add("-ns");
         if (_extra.Text.Trim().Length > 0) a.Add(_extra.Text.Trim());
         return string.Join(' ', a);
+    }
+
+    /// <summary>Writes a log line safely from any thread.</summary>
+    void LogSafe(string line)
+    {
+        if (InvokeRequired) { try { BeginInvoke(new Action(() => Log(line))); } catch { } }
+        else Log(line);
+    }
+
+    /// <summary>
+    /// Shown when there is no Platforms folder yet: the two first-run steps. One downloads the per-patch
+    /// DLLs from the Cactus project, the other builds the base game folder from the user's own Diablo II
+    /// install. Both run off the UI thread and ask for a reopen when done, so the launcher re-detects.
+    /// </summary>
+    Control BuildSetupCard()
+    {
+        string exeDir = System.IO.Path.GetDirectoryName(Application.ExecutablePath) ?? ".";
+        string platformsDir = System.IO.Path.Combine(exeDir, "Platforms");
+        string baseDir = System.IO.Path.Combine(exeDir, "Diablo II");
+
+        var card = new Card("First-time setup");
+        var stack = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, BackColor = Theme.Card };
+        int r = 0;
+        stack.Controls.Add(Theme.Note(
+            "No Platforms folder was found next to this program. Set it up once:"), 0, r++);
+
+        var getPlatforms = Theme.Btn("1.  Download patch files (from Cactus)", primary: true);
+        getPlatforms.Margin = Theme.Pad(0, 8, 0, 2);
+        stack.Controls.Add(getPlatforms, 0, r++);
+        stack.Controls.Add(Theme.Note(
+            "Fetches the per-patch DLL sets into a Platforms folder. Large — a few hundred MB — and the\n" +
+            "files are Blizzard's, hosted by the Cactus project."), 0, r++);
+
+        var getBase = Theme.Btn("2.  Build base folder from my Diablo II install");
+        getBase.Margin = Theme.Pad(0, 10, 0, 2);
+        stack.Controls.Add(getBase, 0, r++);
+        stack.Controls.Add(Theme.Note(
+            "Point at a full Diablo II folder (the one with d2data.mpq); its archives are linked into a\n" +
+            "base folder, costing no extra disk. Then reopen this program and the patches appear."), 0, r++);
+
+        getPlatforms.Click += (_, _) =>
+        {
+            getPlatforms.Enabled = false;
+            Log("downloading platforms…");
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try { Setup.DownloadPlatforms(platformsDir, LogSafe); LogSafe("done — reopen D2F Utilities to use the patches."); }
+                catch (Exception ex) { LogSafe("platform download failed: " + ex.Message); }
+                finally { try { BeginInvoke(new Action(() => getPlatforms.Enabled = true)); } catch { } }
+            });
+        };
+        getBase.Click += (_, _) =>
+        {
+            using var dlg = new FolderBrowserDialog { Description = "Pick your Diablo II folder (the one with d2data.mpq)", UseDescriptionForTitle = true };
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            string chosen = dlg.SelectedPath;
+            getBase.Enabled = false;
+            Log("building base folder…");
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try { Setup.BuildBase(chosen, baseDir, LogSafe); LogSafe("done — reopen D2F Utilities."); }
+                catch (Exception ex) { LogSafe("base setup failed: " + ex.Message); }
+                finally { try { BeginInvoke(new Action(() => getBase.Enabled = true)); } catch { } }
+            });
+        };
+
+        card.Controls.Add(stack);
+        return card;
     }
 
     /// <summary>The patch checklist, one row per platform found, each with its own count. Checked rows
