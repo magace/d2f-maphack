@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>D2Chain.D2FUtil</RootNamespace>
+    <AssemblyName>D2FUtil</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+
+    <!--
+      32-BIT ON PURPOSE. Diablo II is a 32-bit game and the maphack is a 32-bit DLL that has to be
+      injected with CreateRemoteThread(LoadLibraryA). That only works reliably when the injecting
+      process is the same bitness as the target (kernel32 lives at the same address in every 32-bit
+      process, so LoadLibraryA's address in OUR process is valid in the game's). D2F itself is x64 and
+      had to carry a separate native d2launch.exe for this; being x86 lets this tool do it directly.
+    -->
+    <PlatformTarget>x86</PlatformTarget>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <!--
+    The in-game DLL (multi-instance unlock + maphack) is embedded so the published exe is the whole
+    download: it is written out next to the settings file on first run and injected from there.
+    Built from native\d2fmh.c by build.ps1 BEFORE this project - the file must exist.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\native\d2fmh.dll">
+      <LogicalName>d2fmh.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

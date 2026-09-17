@@ -1,0 +1,17 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+publish/
+*.dll
+*.exp
+*.lib
+*.obj
+*.user
+
+# Never commit Diablo II game files — bring your own, they are copyrighted
+*.mpq
+Platforms/
+Diablo II/
+run/
+D2Client.dll
+Game.exe
