@@ -15,3 +15,6 @@ Diablo II/
 run/
 D2Client.dll
 Game.exe
+
+# Local-only project memory / dev notes — not for the public repo
+.notes/
